@@ -20,7 +20,8 @@ https://github.com/laurent22/joplin/blob/master/readme/changelog.md
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="https://joplinapp.org/css/bootstrap.min.css">
 	<link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
-	<link rel="stylesheet" href="https://joplinapp.org/css/fontawesome-all.min.css"> 
+	<!-- <link rel="stylesheet" href="https://joplinapp.org/css/fontawesome-all.min.css">  -->
+	<link rel="stylesheet" href="https://joplinapp.org/css/fork-awesome.min.css"> 
 	<script src="https://joplinapp.org/js/jquery-3.2.1.slim.min.js"></script>
 	<style>
 	body {
@@ -234,6 +235,15 @@ https://github.com/laurent22/joplin/blob/master/readme/changelog.md
 	h6:hover a.heading-anchor {
 		opacity: 1;
 	}
+
+	.bottom-links {
+		display: flex;
+		justify-content: center;
+		border-top: 1px solid #d4d4d4;
+		margin-top: 30px;
+		padding-top: 25px;
+	}
+
 	@media all and (min-width: 400px) {
 		.nav-right .share-btn {
 			display: inline-block;
@@ -307,6 +317,12 @@ https://github.com/laurent22/joplin/blob/master/readme/changelog.md
 </ul>
 </div>
 <h1>Joplin changelog<a name="joplin-changelog" href="#joplin-changelog" class="heading-anchor">🔗</a></h1>
+<h2><a href="https://github.com/laurent22/joplin/releases/tag/v1.0.174">v1.0.174</a> - 2019-11-12T18:20:58Z<a name="v1-0-174-https-github-com-laurent22-joplin-releases-tag-v1-0-174-2019-11-12t18-20-58z" href="#v1-0-174-https-github-com-laurent22-joplin-releases-tag-v1-0-174-2019-11-12t18-20-58z" class="heading-anchor">🔗</a></h2>
+<ul>
+<li>Improved: Show note count by default</li>
+<li>Fixed: Do not crash when a notebook parent does not exist (<a href="https://github.com/laurent22/joplin/issues/2079">#2079</a>)</li>
+<li>Fixed: Fix scaling of inline svg resource icons (<a href="https://github.com/laurent22/joplin/issues/2075">#2075</a>)</li>
+</ul>
 <h2><a href="https://github.com/laurent22/joplin/releases/tag/v1.0.173">v1.0.173</a> - 2019-11-11T08:33:35Z<a name="v1-0-173-https-github-com-laurent22-joplin-releases-tag-v1-0-173-2019-11-11t08-33-35z" href="#v1-0-173-https-github-com-laurent22-joplin-releases-tag-v1-0-173-2019-11-11t08-33-35z" class="heading-anchor">🔗</a></h2>
 <ul>
 <li>New: Add new setting to show note counts for folders and tags (<a href="https://github.com/laurent22/joplin/issues/2006">#2006</a>)</li>
@@ -1249,6 +1265,11 @@ https://github.com/laurent22/joplin/blob/master/readme/changelog.md
 <h2><a href="https://github.com/laurent22/joplin/releases/tag/v0.10.20">v0.10.20</a> - 2017-11-17T17:18:25Z<a name="v0-10-20-https-github-com-laurent22-joplin-releases-tag-v0-10-20-2017-11-17t17-18-25z" href="#v0-10-20-https-github-com-laurent22-joplin-releases-tag-v0-10-20-2017-11-17t17-18-25z" class="heading-anchor">🔗</a></h2>
 <h2><a href="https://github.com/laurent22/joplin/releases/tag/v0.10.19">v0.10.19</a> - 2017-11-20T18:59:48Z<a name="v0-10-19-https-github-com-laurent22-joplin-releases-tag-v0-10-19-2017-11-20t18-59-48z" href="#v0-10-19-https-github-com-laurent22-joplin-releases-tag-v0-10-19-2017-11-20t18-59-48z" class="heading-anchor">🔗</a></h2>
 
+		<div class="bottom-links">
+			<a href="https://github.com/laurent22/joplin/blob/master/readme/changelog.md">
+				<i class="fa fa-github"></i> Improve this doc
+			</a>
+		</div>
 <script>
 	function stickyHeader() { 
 		return; // Disabled
