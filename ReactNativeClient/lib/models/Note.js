@@ -11,6 +11,7 @@ const { _ } = require('lib/locale.js');
 const ArrayUtils = require('lib/ArrayUtils.js');
 const lodash = require('lodash');
 const urlUtils = require('lib/urlUtils.js');
+const { MarkupToHtml } = require('lib/joplin-renderer');
 
 class Note extends BaseItem {
 	static tableName() {
@@ -140,6 +141,10 @@ class Note extends BaseItem {
 
 	static async linkedResourceIds(body) {
 		return this.linkedItemIdsByType(BaseModel.TYPE_RESOURCE, body);
+	}
+
+	static async linkedNoteIds(body) {
+		return this.linkedItemIdsByType(BaseModel.TYPE_NOTE, body);
 	}
 
 	static async replaceResourceInternalToExternalLinks(body) {
@@ -506,7 +511,11 @@ class Note extends BaseItem {
 		if (!originalNote) throw new Error(`Unknown note: ${noteId}`);
 
 		let newNote = Object.assign({}, originalNote);
-		delete newNote.id;
+		const fieldsToReset = ['id', 'created_time', 'updated_time', 'user_created_time', 'user_updated_time'];
+
+		for (let field of fieldsToReset) {
+			delete newNote[field];
+		}
 
 		for (let n in changes) {
 			if (!changes.hasOwnProperty(n)) continue;
@@ -624,16 +633,13 @@ class Note extends BaseItem {
 	}
 
 	static markupLanguageToLabel(markupLanguageId) {
-		if (markupLanguageId === Note.MARKUP_LANGUAGE_MARKDOWN) return 'Markdown';
-		if (markupLanguageId === Note.MARKUP_LANGUAGE_HTML) return 'HTML';
+		if (markupLanguageId === MarkupToHtml.MARKUP_LANGUAGE_MARKDOWN) return 'Markdown';
+		if (markupLanguageId === MarkupToHtml.MARKUP_LANGUAGE_HTML) return 'HTML';
 		throw new Error(`Invalid markup language ID: ${markupLanguageId}`);
 	}
 }
 
 Note.updateGeolocationEnabled_ = true;
 Note.geolocationUpdating_ = false;
-
-Note.MARKUP_LANGUAGE_MARKDOWN = 1;
-Note.MARKUP_LANGUAGE_HTML = 2;
 
 module.exports = Note;

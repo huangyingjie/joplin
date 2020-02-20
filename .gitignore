@@ -44,3 +44,14 @@ ElectronClient/app/gui/note-viewer/fonts/
 ElectronClient/app/gui/note-viewer/lib.js
 Tools/commit_hook.txt
 .vscode/*
+*.map
+
+# AUTO-GENERATED - EXCLUDED TYPESCRIPT BUILD
+ElectronClient/app/gui/ShareNoteDialog.js
+ReactNativeClient/PluginAssetsLoader.js
+ReactNativeClient/lib/JoplinServerApi.js
+ReactNativeClient/lib/joplin-renderer/MdToHtml/rules/mermaid.js
+ElectronClient/app/gui/ResourceScreen.js
+ReactNativeClient/lib/joplin-renderer/MdToHtml/rules/sanitize_html.js
+ReactNativeClient/setUpQuickActions.js
+# AUTO-GENERATED - EXCLUDED TYPESCRIPT BUILD

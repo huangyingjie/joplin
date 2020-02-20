@@ -1,7 +1,12 @@
 {
 	"folders": [
 		{
-			"path": ".",
+			"name": "Joplin",
+			"path": "."
+		},
+		{
+			"name": "Joplin Nextcloud App",
+			"path": "D:/Web/www/nextcloud/apps/joplin"
 		},
 	],
 	"settings": {
@@ -74,6 +79,14 @@
 			"ReactNativeClient/node_modules/": true,
 			"Server/db*.sqlite/": true,
 			"Server/dist/": true,
-		}
+		},
+		"spellright.language": [
+			"en"
+		],
+		"spellright.documentTypes": [
+			"markdown",
+			"latex",
+			"plaintext"
+		]
 	},
 }

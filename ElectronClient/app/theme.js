@@ -63,7 +63,7 @@ globalStyle.buttonStyle = {
 	border: '1px solid',
 	minHeight: 26,
 	minWidth: 80,
-	maxWidth: 160,
+	maxWidth: 220,
 	paddingLeft: 12,
 	paddingRight: 12,
 	paddingTop: 6,
@@ -371,7 +371,7 @@ let themeCache_ = {};
 function themeStyle(theme) {
 	if (!theme) throw new Error('Theme must be specified');
 
-	var zoomRatio = Setting.value('style.zoom') / 100;
+	var zoomRatio = 1; // Setting.value('style.zoom') / 100;
 	var editorFontSize = Setting.value('style.editor.fontSize');
 
 	const cacheKey = [theme, zoomRatio, editorFontSize].join('-');
@@ -471,4 +471,19 @@ function themeStyle(theme) {
 	return themeCache_[cacheKey];
 }
 
-module.exports = { themeStyle };
+const cachedStyles_ = {};
+
+function buildStyle(cacheKey, themeId, callback) {
+	if (cachedStyles_[cacheKey]) cachedStyles_[cacheKey].style;
+
+	const s = callback(themeStyle(themeId));
+
+	cachedStyles_[cacheKey] = {
+		style: s,
+		timestamp: Date.now(),
+	};
+
+	return cachedStyles_[cacheKey].style;
+}
+
+module.exports = { themeStyle, buildStyle };

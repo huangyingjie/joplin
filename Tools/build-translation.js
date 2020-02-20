@@ -87,7 +87,8 @@ async function createPotFile(potFilePath, sources) {
 	baseArgs.push('--copyright-holder="Laurent Cozic"');
 	baseArgs.push('--package-name=Joplin-CLI');
 	baseArgs.push('--package-version=1.0.0');
-	baseArgs.push('--no-location');
+	// baseArgs.push('--no-location');
+	baseArgs.push('--keyword=_n:1,2');
 
 	for (let i = 0; i < sources.length; i++) {
 		let args = baseArgs.slice();
@@ -306,11 +307,15 @@ async function main() {
 
 	saveToFile(`${jsonLocalesDir}/index.js`, buildIndex(locales, stats));
 
-	const rnJsonLocaleDir = `${rnDir}/locales`;
-	await execCommand(`rsync -a "${jsonLocalesDir}/" "${rnJsonLocaleDir}"`);
+	const destDirs = [
+		`${rnDir}/locales`,
+		`${electronDir}/locales`,
+		`${cliDir}/build/locales`,
+	];
 
-	const electronJsonLocaleDir = `${electronDir}/locales`;
-	await execCommand(`rsync -a "${jsonLocalesDir}/" "${electronJsonLocaleDir}"`);
+	for (const destDir of destDirs) {
+		await execCommand(`rsync -a "${jsonLocalesDir}/" "${destDir}/"`);
+	}
 
 	await updateReadmeWithStats(stats);
 }

@@ -11,6 +11,7 @@ const { DropboxLoginScreen } = require('./DropboxLoginScreen.min.js');
 const { StatusScreen } = require('./StatusScreen.min.js');
 const { ImportScreen } = require('./ImportScreen.min.js');
 const { ConfigScreen } = require('./ConfigScreen.min.js');
+const { ResourceScreen } = require('./ResourceScreen.js');
 const { Navigator } = require('./Navigator.min.js');
 const WelcomeUtils = require('lib/WelcomeUtils');
 
@@ -81,8 +82,8 @@ class RootComponent extends React.Component {
 
 	render() {
 		const navigatorStyle = {
-			width: this.props.size.width,
-			height: this.props.size.height,
+			width: this.props.size.width / this.props.zoomFactor,
+			height: this.props.size.height / this.props.zoomFactor,
 		};
 
 		const screens = {
@@ -91,6 +92,7 @@ class RootComponent extends React.Component {
 			DropboxLogin: { screen: DropboxLoginScreen, title: () => _('Dropbox Login') },
 			Import: { screen: ImportScreen, title: () => _('Import') },
 			Config: { screen: ConfigScreen, title: () => _('Options') },
+			Resources: { screen: ResourceScreen, title: () => _('Resources') },
 			Status: { screen: StatusScreen, title: () => _('Synchronisation Status') },
 		};
 
@@ -101,6 +103,7 @@ class RootComponent extends React.Component {
 const mapStateToProps = state => {
 	return {
 		size: state.windowContentSize,
+		zoomFactor: state.settings.windowContentZoomFactor / 100,
 		appState: state.appState,
 	};
 };

@@ -195,6 +195,8 @@ class WebDavApi {
 		}
 
 		if (outputType === 'string') {
+			if (!output) throw new JoplinError(`String property not found: ${propName}: ${JSON.stringify(resource)}`, 'stringNotFound');
+
 			// If the XML has not attribute the value is directly a string
 			// If the XML node has attributes, the value is under "_".
 			// Eg for this XML, the string will be under {"_":"Thu, 01 Feb 2018 17:24:05 GMT"}:
@@ -362,7 +364,7 @@ class WebDavApi {
 
 		let response = null;
 
-		// console.info('WebDAV Call', method + ' ' + url, headers, options);
+		// console.info('WebDAV Call', `${method} ${url}`, headers, options);
 		// console.info(this.requestToCurl_(url, fetchOptions));
 
 		if (options.source == 'file' && (method == 'POST' || method == 'PUT')) {
@@ -431,7 +433,7 @@ class WebDavApi {
 		if (['MKCOL', 'DELETE', 'PUT', 'MOVE'].indexOf(method) >= 0) return null;
 
 		const output = await loadResponseJson();
-		this.handleNginxHack_(output, newError);
+		if (output) this.handleNginxHack_(output, newError);
 
 		// Check that we didn't get for example an HTML page (as an error) instead of the JSON response
 		// null responses are possible, for example for DELETE calls

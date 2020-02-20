@@ -214,7 +214,7 @@ function shimInit() {
 		if (shim.isElectron()) {
 			const nativeImage = require('electron').nativeImage;
 			let image = nativeImage.createFromDataURL(imageDataUrl);
-			if (image.isEmpty()) throw new Error('Could not convert data URL to image'); // Would throw for example if the image format is no supported (eg. image/gif)
+			if (image.isEmpty()) throw new Error('Could not convert data URL to image - perhaps the format is not supported (eg. image/gif)'); // Would throw for example if the image format is no supported (eg. image/gif)
 			if (options.cropRect) {
 				// Crop rectangle values need to be rounded or the crop() call will fail
 				const c = options.cropRect;
@@ -358,10 +358,35 @@ function shimInit() {
 
 	shim.openUrl = url => {
 		const { bridge } = require('electron').remote.require('./bridge');
-		bridge().openExternal(url);
+		// Returns true if it opens the file successfully; returns false if it could
+		// not find the file.
+		return bridge().openExternal(url);
+	};
+
+	shim.openOrCreateFile = (filepath, defaultContents) => {
+		// If the file doesn't exist, create it
+		if (!fs.existsSync(filepath)) {
+			fs.writeFile(filepath, defaultContents, 'utf-8', (error) => {
+				if (error) {
+					console.error(`error: ${error}`);
+				}
+			});
+		}
+
+		// Open the file
+		return shim.openUrl(`file://${filepath}`);
 	};
 
 	shim.waitForFrame = () => {};
+
+	shim.appVersion = () => {
+		if (shim.isElectron()) {
+			const p = require('../packageInfo.js');
+			return p.version;
+		}
+		const p = require('../package.json');
+		return p.version;
+	};
 }
 
 module.exports = { shimInit };

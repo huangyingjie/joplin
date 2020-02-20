@@ -6,6 +6,7 @@ const Setting = require('lib/models/Setting.js');
 const { shim } = require('lib/shim.js');
 const MasterKey = require('lib/models/MasterKey');
 const Note = require('lib/models/Note');
+const { MarkupToHtml } = require('lib/joplin-renderer');
 const { _, setLocale } = require('lib/locale.js');
 const { Logger } = require('lib/logger.js');
 const fs = require('fs-extra');
@@ -22,12 +23,13 @@ const ResourceService = require('lib/services/ResourceService');
 const ClipperServer = require('lib/ClipperServer');
 const ExternalEditWatcher = require('lib/services/ExternalEditWatcher');
 const { bridge } = require('electron').remote.require('./bridge');
-const { shell } = require('electron');
+const { shell, webFrame } = require('electron');
 const Menu = bridge().Menu;
 const PluginManager = require('lib/services/PluginManager');
 const RevisionService = require('lib/services/RevisionService');
 const MigrationService = require('lib/services/MigrationService');
 const TemplateUtils = require('lib/TemplateUtils');
+const CssUtils = require('lib/CssUtils');
 
 const pluginClasses = [
 	require('./plugins/GotoAnything.min'),
@@ -48,7 +50,7 @@ const appDefaultState = Object.assign({}, defaultState, {
 	windowContentSize: bridge().windowContentSize(),
 	watchedNoteFiles: [],
 	lastEditorScrollPercents: {},
-	noteDevToolsVisible: false,
+	devToolsVisible: false,
 });
 
 class Application extends BaseApplication {
@@ -220,7 +222,12 @@ class Application extends BaseApplication {
 
 			case 'NOTE_DEVTOOLS_TOGGLE':
 				newState = Object.assign({}, state);
-				newState.noteDevToolsVisible = !newState.noteDevToolsVisible;
+				newState.devToolsVisible = !newState.devToolsVisible;
+				break;
+
+			case 'NOTE_DEVTOOLS_SET':
+				newState = Object.assign({}, state);
+				newState.devToolsVisible = action.value;
 				break;
 
 			}
@@ -230,6 +237,14 @@ class Application extends BaseApplication {
 		}
 
 		return super.reducer(newState, action);
+	}
+
+	toggleDevTools(visible) {
+		if (visible) {
+			bridge().openDevTools();
+		} else {
+			bridge().closeDevTools();
+		}
 	}
 
 	async generalMiddleware(store, next, action) {
@@ -247,6 +262,10 @@ class Application extends BaseApplication {
 
 		if (action.type == 'SETTING_UPDATE_ONE' && action.key == 'style.editor.fontFamily' || action.type == 'SETTING_UPDATE_ALL') {
 			this.updateEditorFont();
+		}
+
+		if (action.type == 'SETTING_UPDATE_ONE' && action.key == 'windowContentZoomFactor' || action.type == 'SETTING_UPDATE_ALL') {
+			webFrame.setZoomFactor(Setting.value('windowContentZoomFactor') / 100);
 		}
 
 		if (['EVENT_NOTE_ALARM_FIELD_CHANGE', 'NOTE_DELETE'].indexOf(action.type) >= 0) {
@@ -273,12 +292,12 @@ class Application extends BaseApplication {
 		}
 
 		if (action.type.indexOf('NOTE_SELECT') === 0 || action.type.indexOf('FOLDER_SELECT') === 0) {
-			this.updateMenuItemStates();
+			this.updateMenuItemStates(newState);
 		}
 
-		if (action.type === 'NOTE_DEVTOOLS_TOGGLE') {
-			const menuItem = Menu.getApplicationMenu().getMenuItemById('help:toggleDevTools');
-			menuItem.checked = newState.noteDevToolsVisible;
+		if (['NOTE_DEVTOOLS_TOGGLE', 'NOTE_DEVTOOLS_SET'].indexOf(action.type) >= 0) {
+			this.toggleDevTools(newState.devToolsVisible);
+			this.updateMenuItemStates(newState);
 		}
 
 		return result;
@@ -371,13 +390,15 @@ class Application extends BaseApplication {
 		for (let i = 0; i < ioModules.length; i++) {
 			const module = ioModules[i];
 			if (module.type === 'exporter') {
-				exportItems.push({
-					label: module.fullLabel(),
-					screens: ['Main'],
-					click: async () => {
-						await InteropServiceHelper.export(this.dispatch.bind(this), module);
-					},
-				});
+				if (module.canDoMultiExport !== false) {
+					exportItems.push({
+						label: module.fullLabel(),
+						screens: ['Main'],
+						click: async () => {
+							await InteropServiceHelper.export(this.dispatch.bind(this), module);
+						},
+					});
+				}
 			} else {
 				for (let j = 0; j < module.sources.length; j++) {
 					const moduleSource = module.sources[j];
@@ -391,7 +412,7 @@ class Application extends BaseApplication {
 
 							if (moduleSource === 'file') {
 								path = bridge().showOpenDialog({
-									filters: [{ name: module.description, extensions: module.fileExtensions}],
+									filters: [{ name: module.description, extensions: module.fileExtensions }],
 								});
 							} else {
 								path = bridge().showOpenDialog({
@@ -442,9 +463,11 @@ class Application extends BaseApplication {
 			label: `PDF - ${_('PDF File')}`,
 			screens: ['Main'],
 			click: async () => {
+				const selectedNoteIds = this.store().getState().selectedNoteIds;
 				this.dispatch({
 					type: 'WINDOW_COMMAND',
 					name: 'exportPdf',
+					noteIds: selectedNoteIds,
 				});
 			},
 		});
@@ -462,6 +485,16 @@ class Application extends BaseApplication {
 				this.dispatch({
 					type: 'NAV_GO',
 					routeName: 'Status',
+				});
+			},
+		};
+
+		const resourceViewItem = {
+			label: _('Resources'),
+			click: () => {
+				this.dispatch({
+					type: 'NAV_GO',
+					routeName: 'Resources',
 				});
 			},
 		};
@@ -591,7 +624,7 @@ class Application extends BaseApplication {
 					routeName: 'Config',
 				});
 			},
-		}]);
+		}, resourceViewItem]);
 
 		function _checkForUpdates(ctx) {
 			bridge().checkForUpdates(false, bridge().window(), ctx.checkForUpdateLoggerPath(), { includePreReleases: Setting.value('autoUpdate.includePreReleases') });
@@ -603,14 +636,16 @@ class Application extends BaseApplication {
 			if ('git' in p) {
 				gitInfo = _('Revision: %s (%s)', p.git.hash, p.git.branch);
 			}
+			const copyrightText = 'Copyright © 2016-YYYY Laurent Cozic';
 			let message = [
 				p.description,
 				'',
-				'Copyright © 2016-2019 Laurent Cozic',
+				copyrightText.replace('YYYY', new Date().getFullYear()),
 				_('%s %s (%s, %s)', p.name, p.version, Setting.value('env'), process.platform),
 				'',
 				_('Client ID: %s', Setting.value('clientId')),
 				_('Sync Version: %s', Setting.value('syncVersion')),
+				_('Profile Version: %s', reg.db().version()),
 			];
 			if (gitInfo) {
 				message.push(`\n${gitInfo}`);
@@ -855,12 +890,10 @@ class Application extends BaseApplication {
 					accelerator: 'CommandOrControl+Alt+T',
 					click: () => {
 						const selectedNoteIds = this.store().getState().selectedNoteIds;
-						if (selectedNoteIds.length !== 1) return;
-
 						this.dispatch({
 							type: 'WINDOW_COMMAND',
 							name: 'setTags',
-							noteId: selectedNoteIds[0],
+							noteIds: selectedNoteIds,
 						});
 					},
 				}, {
@@ -970,6 +1003,27 @@ class Application extends BaseApplication {
 					label: _('Focus'),
 					screens: ['Main'],
 					submenu: focusItems,
+				}, {
+					type: 'separator',
+					screens: ['Main'],
+				}, {
+					label: _('Actual Size'),
+					click: () => {
+						Setting.setValue('windowContentZoomFactor', 100);
+					},
+					accelerator: 'CommandOrControl+0',
+				}, {
+					label: _('Zoom In'),
+					click: () => {
+						Setting.incValue('windowContentZoomFactor', 10);
+					},
+					accelerator: 'CommandOrControl+=',
+				}, {
+					label: _('Zoom Out'),
+					click: () => {
+						Setting.incValue('windowContentZoomFactor', -10);
+					},
+					accelerator: 'CommandOrControl+-',
 				}],
 			},
 			tools: {
@@ -1104,18 +1158,23 @@ class Application extends BaseApplication {
 		this.lastMenuScreen_ = screen;
 	}
 
-	async updateMenuItemStates() {
+	async updateMenuItemStates(state = null) {
 		if (!this.lastMenuScreen_) return;
-		if (!this.store()) return;
+		if (!this.store() && !state) return;
 
-		const selectedNoteIds = this.store().getState().selectedNoteIds;
+		if (!state) state = this.store().getState();
+
+		const selectedNoteIds = state.selectedNoteIds;
 		const note = selectedNoteIds.length === 1 ? await Note.load(selectedNoteIds[0]) : null;
 
-		for (const itemId of ['copy', 'paste', 'cut', 'selectAll', 'bold', 'italic', 'link', 'code', 'insertDateTime', 'commandStartExternalEditing', 'setTags', 'showLocalSearch']) {
+		for (const itemId of ['copy', 'paste', 'cut', 'selectAll', 'bold', 'italic', 'link', 'code', 'insertDateTime', 'commandStartExternalEditing', 'showLocalSearch']) {
 			const menuItem = Menu.getApplicationMenu().getMenuItemById(`edit:${itemId}`);
 			if (!menuItem) continue;
-			menuItem.enabled = !!note && note.markup_language === Note.MARKUP_LANGUAGE_MARKDOWN;
+			menuItem.enabled = !!note && note.markup_language === MarkupToHtml.MARKUP_LANGUAGE_MARKDOWN;
 		}
+
+		const menuItem = Menu.getApplicationMenu().getMenuItemById('help:toggleDevTools');
+		menuItem.checked = state.devToolsVisible;
 	}
 
 	updateTray() {
@@ -1127,7 +1186,7 @@ class Application extends BaseApplication {
 			app.destroyTray();
 		} else {
 			const contextMenu = Menu.buildFromTemplate([
-				{ label: _('Open %s', app.electronApp().getName()), click: () => { app.window().show(); } },
+				{ label: _('Open %s', app.electronApp().name), click: () => { app.window().show(); } },
 				{ type: 'separator' },
 				{ label: _('Exit'), click: () => { app.quit(); } },
 			]);
@@ -1167,6 +1226,39 @@ class Application extends BaseApplication {
 		return cssString;
 	}
 
+	// async createManyNotes() {
+	// 	return;
+	// 	const folderIds = [];
+
+	// 	const randomFolderId = (folderIds) => {
+	// 		if (!folderIds.length) return '';
+	// 		const idx = Math.floor(Math.random() * folderIds.length);
+	// 		if (idx > folderIds.length - 1) throw new Error('Invalid index ' + idx + ' / ' + folderIds.length);
+	// 		return folderIds[idx];
+	// 	}
+
+	// 	let rootFolderCount = 0;
+	// 	let folderCount = 100;
+
+	// 	for (let i = 0; i < folderCount; i++) {
+	// 		let parentId = '';
+
+	// 		if (Math.random() >= 0.9 || rootFolderCount >= folderCount / 10) {
+	// 			parentId = randomFolderId(folderIds);
+	// 		} else {
+	// 			rootFolderCount++;
+	// 		}
+
+	// 		const folder = await Folder.save({ title: 'folder' + i, parent_id: parentId });
+	// 		folderIds.push(folder.id);
+	// 	}
+
+	// 	for (let i = 0; i < 10000; i++) {
+	// 		const parentId = randomFolderId(folderIds);
+	// 		Note.save({ title: 'note' + i, parent_id: parentId });
+	// 	}
+	// }
+
 	async start(argv) {
 		const electronIsDev = require('electron-is-dev');
 
@@ -1176,13 +1268,18 @@ class Application extends BaseApplication {
 
 		argv = await super.start(argv);
 
+		// Loads app-wide styles. (Markdown preview-specific styles loaded in app.js)
+		const dir = Setting.value('profileDir');
+		const filename = Setting.custom_css_files.JOPLIN_APP;
+		await CssUtils.injectCustomStyles(`${dir}/${filename}`);
+
 		AlarmService.setDriver(new AlarmServiceDriverNode({ appName: packageInfo.build.appId }));
 		AlarmService.setLogger(reg.logger());
 
 		reg.setShowErrorMessageBoxHandler((message) => { bridge().showErrorMessageBox(message); });
 
-		if (Setting.value('openDevTools')) {
-			bridge().window().webContents.openDevTools();
+		if (Setting.value('flagOpenDevTools')) {
+			bridge().openDevTools();
 		}
 
 		PluginManager.instance().dispatch_ = this.dispatch.bind(this);
@@ -1224,8 +1321,8 @@ class Application extends BaseApplication {
 			ids: Setting.value('collapsedFolderIds'),
 		});
 
-		const cssString = await this.loadCustomCss(`${Setting.value('profileDir')}/userstyle.css`);
-
+		// Loads custom Markdown preview styles
+		const cssString = await CssUtils.loadCustomCss(`${Setting.value('profileDir')}/userstyle.css`);
 		this.store().dispatch({
 			type: 'LOAD_CUSTOM_CSS',
 			css: cssString,
@@ -1236,6 +1333,11 @@ class Application extends BaseApplication {
 		this.store().dispatch({
 			type: 'TEMPLATE_UPDATE_ALL',
 			templates: templates,
+		});
+
+		this.store().dispatch({
+			type: 'NOTE_DEVTOOLS_SET',
+			value: Setting.value('flagOpenDevTools'),
 		});
 
 		// Note: Auto-update currently doesn't work in Linux: it downloads the update
